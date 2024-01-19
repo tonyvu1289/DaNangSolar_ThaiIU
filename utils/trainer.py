@@ -18,25 +18,29 @@ import copy
 from torch.autograd import Variable
 
 from sktime.datatypes._panel._convert import from_2d_array_to_nested
+from tqdm import tqdm
 
 def train_single(epoch, train_loader, model, optimizer, config):
     model.train()
 
-    for idx, data in enumerate(train_loader):
+    progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}", leave=False)
+
+    for idx, data in enumerate(progress_bar):
         input, target = data
         input = input.float()
         input = input.to(config.device)
         target = target.to(config.device)
         feat_s, logit_s = model(input)
               
-        if len(target.shape) == 1:
-            loss = F.binary_cross_entropy_with_logits(logit_s, target.unsqueeze(-1).float(), reduction='mean')
-        else:
-            loss = F.cross_entropy(logit_s, target.argmax(dim=-1), reduction='mean')
+        loss = F.mse_loss(logit_s, target.unsqueeze(-1).float(), reduction='mean')
         
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        progress_bar.set_postfix({"Loss": loss.item()})
+
+    progress_bar.close()
     
 
 def train_distilled(epoch, train_loader, module_list, criterion_list, optimizer, config, teacher_probs, teacher_list):
