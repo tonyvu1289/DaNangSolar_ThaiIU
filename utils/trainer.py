@@ -32,7 +32,7 @@ def train_single(epoch, train_loader, model, optimizer, config):
         target = target.to(config.device)
         feat_s, logit_s = model(input)
               
-        loss = F.mse_loss(logit_s, target.unsqueeze(-1).float(), reduction='mean')
+        loss = F.mse_loss(logit_s, target.float(), reduction='mean')
         
         optimizer.zero_grad()
         loss.backward()
