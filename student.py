@@ -7,6 +7,7 @@ from utils.distiller import *
 from utils.trainer import train_single, train_distilled, validation, evaluate, evaluate_ensemble
 from utils.cawpe import train_probabilities
 import os
+from tqdm import tqdm
                 
 def BasicStudent(model, config):
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
@@ -150,7 +151,7 @@ def AED(model, config, teachers):
         criterion_list.append(nn.CrossEntropyLoss())
         criterion_list.append(DistillKL(config.kd_temperature))
     else:
-        criterion_list.append(nn.BCEWithLogitsLoss())
+        criterion_list.append(nn.MSELoss())
         criterion_list.append(DistillKLOne(config.kd_temperature))
     
 
@@ -212,13 +213,13 @@ def AED(model, config, teachers):
 
     start_training = time.time()
  
-    for epoch in range(1, config.epochs + 1):
+    for epoch in tqdm(range(1, config.epochs + 1), desc="Training"):
         train_distilled(epoch, train_loader, module_list, criterion_list, optimizer, config, [], [])
         
         if (epoch % config.val_epochs == 0) and config.evaluation == 'lightts':
             teacher_weights = validation(epoch, val_loader, module_list, criterion_list, optimizer_w, config)
 
-        if (epoch) % 100 == 0:
+        if (epoch) % 1 == 0:
             training_time = time.time() - start_training
             accuracy = evaluate(test_loader, model_s, config, epoch, training_time)
         elif config.pid == 0:

@@ -61,7 +61,10 @@ def train_distilled(epoch, train_loader, module_list, criterion_list, optimizer,
         
     total_teacher_losses = np.empty(config.teachers)
 
-    for idx, data in enumerate(train_loader):
+    from tqdm import tqdm
+    progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}", leave=False)
+
+    for idx, data in enumerate(progress_bar):
         batch_loss = 0
         teachers_loss = torch.zeros(config.teachers, dtype=torch.float32, device = config.device)
         reward = torch.zeros(config.teachers, dtype=torch.float32, device = config.device)
@@ -209,7 +212,7 @@ def train_distilled(epoch, train_loader, module_list, criterion_list, optimizer,
         if len(target.shape) == 1:
             loss_cls = F.binary_cross_entropy_with_logits(logit_s, target.unsqueeze(-1).float(), reduction='mean')
         else:
-            loss_cls = F.cross_entropy(logit_s, target.argmax(dim=-1), reduction='mean')       
+            loss_cls = F.mse_loss(logit_s, target.float(), reduction='mean')
 
         if config.w_kl == -1:
             loss = config.w_ce * loss_cls + config.teachers * ensemble_loss
@@ -222,6 +225,8 @@ def train_distilled(epoch, train_loader, module_list, criterion_list, optimizer,
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        progress_bar.set_postfix({"Loss": loss.item()})
+
         
     return reward
 

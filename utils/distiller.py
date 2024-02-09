@@ -42,9 +42,9 @@ class DistillKL(nn.Module):
         self.T = T
 
     def forward(self, y_s, y_t):
-        p_s = F.log_softmax(y_s/self.T, dim=1)
-        p_t = F.softmax(y_t/self.T, dim=1)
-        loss = F.kl_div(p_s, p_t, reduction='sum') * (self.T**2) / y_s.shape[0]
+        p_s = y_s / self.T
+        p_t = y_t / self.T
+        loss = F.mse_loss(p_s, p_t) 
         return loss
     
 class DistillKLOne(nn.Module):
@@ -53,9 +53,7 @@ class DistillKLOne(nn.Module):
         self.T = T
 
     def forward(self, y_s, y_t):
-        p_s = y_s/self.T
-        p_t = y_t/self.T
-        loss = F.kl_div(p_s, p_t, reduction='sum') * (self.T**2) / y_s.shape[0]
+        loss = F.mse_loss(y_s, y_t) 
         return loss
 
 class KDEnsemble(nn.Module):
