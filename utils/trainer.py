@@ -305,6 +305,8 @@ def validation(epoch, val_loader, module_list, criterion_list, optimizer, config
     return ensemble_weights.tolist()
 
 
+from sklearn.metrics import mean_squared_error, r2_score
+
 def evaluate(test_loader, model, config, epochs=0, training_time=0):
     model.eval()
 
@@ -315,11 +317,13 @@ def evaluate(test_loader, model, config, epochs=0, training_time=0):
             x, y = x.to(config.device), y.to(config.device)
             with torch.no_grad():
                 true_list.append(y.cpu().detach().numpy())
-                _,preds = model(x)
+                _, preds = model(x)
                 preds_list.append(preds.cpu().detach().numpy())
         testing_time = time.time() - start_test
         true_np, preds_np = np.concatenate(true_list), np.concatenate(preds_list)
         mae = mean_absolute_error(true_np, preds_np)
+        mse = mean_squared_error(true_np, preds_np)
+        r2 = r2_score(true_np, preds_np)
 
         if training_time == -1:
             return mae
@@ -329,7 +333,7 @@ def evaluate(test_loader, model, config, epochs=0, training_time=0):
             #insert_SQL(config.teacher_type, config.pid, config.dataset, "Gumble", config.gumbel, type_q, config.teachers,
             #           config.evaluation, mae, mse, r2, "Epochs", epochs, "Training time", 
             #           training_time,"Test time",testing_time)
-            print("Epoch: " + str(epochs) + ", MAE: " + str(mae))
+            print("Epoch: " + str(epochs) + ", MAE: " + str(mae) + ", R2 Score: " + str(r2) + ", MSE: " + str(mse))
             return mae
 
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score

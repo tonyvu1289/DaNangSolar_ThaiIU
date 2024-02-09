@@ -136,7 +136,7 @@ def BaselineStudent(model, config):
 
 def AED(model, config, teachers):
     config.teachers = len(teachers)
-
+    
     model_s = model
     model_s.eval()
     model_s = model_s.to(config.device)
@@ -212,7 +212,8 @@ def AED(model, config, teachers):
     criterion_list.to(config.device)
 
     start_training = time.time()
- 
+    best_accuracy = 9000
+
     for epoch in range(1, config.epochs + 1):
         train_distilled(epoch, train_loader, module_list, criterion_list, optimizer, config, [], [])
         
@@ -222,6 +223,13 @@ def AED(model, config, teachers):
         if (epoch) % 1 == 0:
             training_time = time.time() - start_training
             accuracy = evaluate(test_loader, model_s, config, epoch, training_time)
+            if accuracy < best_accuracy:
+                best_accuracy = accuracy
+                if not os.path.exists('./student_lightts/'):
+                    os.makedirs('./student_lightts/')
+                model_name = f'Inception_{config.dataset}_{config.init_seed}_student_lightts.pkl'
+                savepath = "./student_lightts/" + model_name
+                torch.save(model.state_dict(), savepath)
         elif config.pid == 0:
             training_time = 0
             teacher_weights = validation(epoch, val_loader, module_list, criterion_list, optimizer_w, config)
