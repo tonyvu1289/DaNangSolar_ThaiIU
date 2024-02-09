@@ -37,25 +37,13 @@ class InputData:
 
 
 
-def load_ucr_data(config, use_encoder=True) -> Tuple[InputData, InputData]:
+def load_ucr_data(config) -> Tuple[InputData, InputData]:
 
     train = np.loadtxt(config.data_folder / config.dataset /f'{config.dataset}_TRAIN.tsv', delimiter='\t')
     test = np.loadtxt(config.data_folder / config.dataset /f'{config.dataset}_TEST.tsv', delimiter='\t')
 
-    if use_encoder:
-        encoder = OneHotEncoder(categories='auto', sparse=False)
-        y_train = encoder.fit_transform(np.expand_dims(train[:, 0], axis=-1))
-        y_test = encoder.transform(np.expand_dims(test[:, 0], axis=-1))
-    else:
-        y_train = np.expand_dims(train[:, 0], axis=-1)
-        y_test = np.expand_dims(test[:, 0], axis=-1)
-
-    if y_train.shape[1] == 2:
-        y_train = y_train[:, 0]
-        y_test = y_test[:, 0]
-    
-    original_data = train[:, 1:]
-    test_data = test[:, 1:]
+    y_train = np.expand_dims(train[:, 0], axis=-1)
+    y_test = np.expand_dims(test[:, 0], axis=-1)
     
     train_input = InputData(x=torch.from_numpy(train[:, 1:]).unsqueeze(1).float(),y=torch.from_numpy(y_train))
     test_input = InputData(x=torch.from_numpy(test[:, 1:]).unsqueeze(1).float(),y=torch.from_numpy(y_test))

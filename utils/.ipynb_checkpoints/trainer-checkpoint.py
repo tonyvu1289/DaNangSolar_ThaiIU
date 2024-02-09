@@ -32,7 +32,7 @@ def train_single(epoch, train_loader, model, optimizer, config):
         target = target.to(config.device)
         feat_s, logit_s = model(input)
               
-        loss = F.mse_loss(logit_s, target.unsqueeze(-1).float(), reduction='mean')
+        loss = F.mse_loss(logit_s, target.float(), reduction='mean')
         
         optimizer.zero_grad()
         loss.backward()
@@ -310,38 +310,24 @@ def evaluate(test_loader, model, config, epochs=0, training_time=0):
             x, y = x.to(config.device), y.to(config.device)
             with torch.no_grad():
                 true_list.append(y.cpu().detach().numpy())
-                _, preds = model(x)
-                if len(y.shape) == 1:
-                    preds = torch.sigmoid(preds)
-                else:
-                    preds = torch.softmax(preds, dim=-1)
+                _,preds = model(x)
                 preds_list.append(preds.cpu().detach().numpy())
         testing_time = time.time() - start_test
         true_np, preds_np = np.concatenate(true_list), np.concatenate(preds_list)
-        accuracy = accuracy_score(*_to_1d_binary(true_np, preds_np), normalize=True)
-        true_1d,_ = _to_1d_binary(true_np, preds_np)
-
-        if config.num_classes > 5:
-            try:
-                accuracy_5 = top_k_accuracy_score(true_1d, preds_np, normalize=True, k=5)
-                roc_auc = roc_auc_score(true_np, preds_np)
-                pr_auc = average_precision_score(true_np, preds_np)
-            except Exception as e:
-                accuracy_5 = roc_auc = pr_auc = -1
-        else:
-            accuracy_5 = roc_auc = pr_auc = -1
-
+        mae = mean_absolute_error(true_np, preds_np)
 
         if training_time == -1:
-            return accuracy
+            return mae
         else:
             type_q = str(config.layer1) + "(" + str(config.bit1) + ")-" + str(config.layer2) + "(" + str(config.bit2) + ")-" + str(config.layer2) + "(" + str(config.bit3) + ")"
 
             #insert_SQL(config.teacher_type, config.pid, config.dataset, "Gumble", config.gumbel, type_q, config.teachers,
-            #           config.evaluation, accuracy, "Top 5", accuracy_5, "Epochs", epochs, "Training time", 
+            #           config.evaluation, mae, mse, r2, "Epochs", epochs, "Training time", 
             #           training_time,"Test time",testing_time)
-            print("Epoch: " + str(epochs) + ", Accuracy: " + str(accuracy))
-            return accuracy
+            print("Epoch: " + str(epochs) + ", MAE: " + str(mae))
+            return mae
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 def evaluate_ensemble(test_loader, config):
     
@@ -370,10 +356,6 @@ def evaluate_ensemble(test_loader, config):
                     with torch.no_grad():
                         true_list.append(y.cpu().detach().numpy())
                         _, preds = model_t(x)
-                        if len(y.shape) == 1:
-                            preds = torch.sigmoid(preds)
-                        else:
-                            preds = torch.softmax(preds, dim=-1)
                         preds_list.append(preds)
 
                 true_np, preds_tensor = np.concatenate(true_list), torch.cat(preds_list)
@@ -390,45 +372,23 @@ def evaluate_ensemble(test_loader, config):
                 x, y = x.to(config.device), y.to(config.device)
                 true_list.append(y.cpu().detach().numpy())
                 X_test = from_2d_array_to_nested(x.squeeze().cpu().detach().numpy())
-                logit_t_np = pickle_saved.predict_proba(X_test)
-                logit_t = torch.as_tensor(logit_t_np, dtype = torch.float, device = config.device)
-                
-                if len(y.shape) == 1:
-                    preds = torch.sigmoid(logit_t)
-                else:
-                    preds = torch.softmax(logit_t, dim=-1)
+                preds = pickle_saved.predict(X_test)
                 preds_list.append(preds)
             true_np, preds_tensor = np.concatenate(true_list), torch.cat(preds_list)
-            sum_np = preds_tensor.cpu().detach().numpy()
-            accuracy = accuracy_score(*_to_1d_binary(true_np, sum_np), normalize=True)
-            true_1d,_ = _to_1d_binary(true_np, sum_np)
-            try:
-                accuracy_5 = top_k_accuracy_score(true_1d, sum_np, normalize=True, k=5)
-            except Exception as e: # Undefinition for few classes
-                accuracy_5 = -1
-                
-            type_q = "Full precision"
-            #insert_SQL(config.teacher_type, config.pid, config.dataset, "Teacher", teacher, type_q, 32, config.evaluation,
-            #           accuracy, "Top 5", accuracy_5, "Metric 2", 0, "Metric 3", 0, "Metric 4", 0) 
-            print("Teacher accuracy: " + str(accuracy))
             ensemble_result.append(preds_tensor)
         
-    sum_probabilities = torch.stack(ensemble_result).sum(dim=0)
-    sum_np = sum_probabilities.cpu().detach().numpy()
+    sum_predictions = torch.stack(ensemble_result).sum(dim=0)/len(teachers)
+    sum_np = sum_predictions.cpu().detach().numpy()
 
-    accuracy = accuracy_score(*_to_1d_binary(true_np, sum_np), normalize=True)
-    true_1d,_ = _to_1d_binary(true_np, sum_np)
+    # Calculate evaluation metrics for regression task
+    mse = mean_squared_error(true_np, sum_np)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(true_np, sum_np)
+    r2 = r2_score(true_np, sum_np)
     
-    if config.num_classes > 5:
-        try:
-            accuracy_5 = top_k_accuracy_score(true_1d, sum_np, normalize=True, k=5)
-        except Exception as e: # Undefinition for few classes
-            accuracy_5 = -1
-    else:
-        accuracy_5 = -1
-        
-    type_q = "Full precision"
-    #insert_SQL(config.teacher_type, config.pid, config.dataset, "Teacher Ensemble", 0, type_q, 32, config.evaluation,
-    #           accuracy, "Top 5", accuracy_5, "Metric 2", 0, "Metric 3", 0, "Metric 4", 0) 
-    print("Ensemble accuracy: " + str(accuracy))
-    return accuracy
+    print("MSE: " + str(mse))
+    print("RMSE: " + str(rmse))
+    print("MAE: " + str(mae))
+    print("R2 Score: " + str(r2))
+    
+    return mse, rmse, mae, r2
