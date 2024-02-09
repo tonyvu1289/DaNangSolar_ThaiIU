@@ -213,7 +213,7 @@ def AED(model, config, teachers):
 
     start_training = time.time()
  
-    for epoch in tqdm(range(1, config.epochs + 1), desc="Training"):
+    for epoch in range(1, config.epochs + 1):
         train_distilled(epoch, train_loader, module_list, criterion_list, optimizer, config, [], [])
         
         if (epoch % config.val_epochs == 0) and config.evaluation == 'lightts':
