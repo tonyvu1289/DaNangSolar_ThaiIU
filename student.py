@@ -129,10 +129,10 @@ def BaselineStudent(model, config):
             teacher_probs = torch.softmax(teacher_probs, dim=-1)
         if (epoch) % 100 == 0:
             training_time = time.time() - start_training
-            accuracy = evaluate(test_loader, model_s, config, epoch, training_time)   
+            accuracy = evaluate(val_loader, model_s, config, epoch, training_time)   
         elif config.pid == 0:
             training_time = 0
-            accuracy = evaluate(test_loader, model_s, config, epoch, training_time)
+            accuracy = evaluate(val_loader, model_s, config, epoch, training_time)
 
 def AED(model, config, teachers):
     config.teachers = len(teachers)
@@ -313,3 +313,25 @@ def RunStudent(config):
         BasicStudent(model_s, config)
     else:
         BaselineStudent(model_s, config) #'classic','agree','cawpe','reinforced'
+    StudentEvaluation(config)    
+def StudentEvaluation(config):
+    if config.teacher_type == 'Inception':
+        _, _, test_loader = get_loaders(config)
+    else:
+        config.batch_size = 10000
+        _, _, test_loader = get_loaders(config)
+    evaluate_student(test_loader, config)
+def evaluate_student(test_loader, config):
+    config.layer1 = config.layer2 = config.layer3 = 3
+    model = InceptionModel(num_blocks=3, in_channels=1, out_channels=[10,20,40],
+                   bottleneck_channels=32, kernel_sizes=41, use_residuals=True,
+                   num_pred_classes=config.num_classes,config=config)
+    model = model.to(config.device)
+    model_name = f'{config.teacher_type}_{config.dataset}_{config.init_seed}_student_{config.evaluation}.pkl'
+    savepath = f"./student_{config.evaluation}/" + model_name
+    model.load_state_dict(torch.load(savepath, map_location=config.device))
+    model.eval()
+    model = model.to(config.device)
+    print('Evaluating student on testset: ')
+    evaluate(test_loader, model, config)
+    # print(accuracy)

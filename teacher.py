@@ -14,7 +14,7 @@ def NN_Teacher(model, config):
     
 
         training_time = time.time() - start_training
-        current_accuracy = evaluate(test_loader, model, config, epoch, training_time)
+        current_accuracy = evaluate(val_loader, model, config, epoch, training_time)
 
         if current_accuracy < best_accuracy:
             best_accuracy = current_accuracy
