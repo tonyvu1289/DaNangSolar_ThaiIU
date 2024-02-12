@@ -19,7 +19,7 @@ def BasicStudent(model, config):
         train_single(epoch, train_loader, model, optimizer, config)
     
         training_time = time.time() - start_training
-        current_accuracy = evaluate(test_loader, model, config, epoch, training_time)
+        current_accuracy = evaluate(val_loader, model, config, epoch, training_time)
         if current_accuracy < best_accuracy:
             best_accuracy = current_accuracy
             if not os.path.exists('./student_non_distill/'):
