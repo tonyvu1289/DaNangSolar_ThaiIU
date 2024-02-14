@@ -22,8 +22,8 @@ def BasicStudent(model, config):
         current_accuracy = evaluate(val_loader, model, config, epoch, training_time)
         if current_accuracy < best_accuracy:
             best_accuracy = current_accuracy
-            if not os.path.exists('./student_non_distill/'):
-                os.makedirs('./student_non_distill/')
+            if not os.path.exists('./student_non_distill-student/'):
+                os.makedirs('./student_non_distill-student/')
             model_name = f'Inception_{config.dataset}_{config.init_seed}_student_non_distill.pkl'
             savepath = "./student_non_distill/" + model_name
             torch.save(model.state_dict(), savepath)
